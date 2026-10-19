@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>20.10 | Đóa Hồng Ruby - Hải Yến</title>
+    
+    <!-- Google Fonts: Cormorant Garamond & Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Montserrat:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+    <!-- External Libraries: Three.js & GSAP via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <!-- PostProcessing Shaders for Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #060305;
+            --rosewood: #0f060a;
+            --gold-primary: #d4af37;
+            --gold-light: #f3e5ab;
+            --gold-dim: rgba(212, 175, 55, 0.35);
+            --ruby-glow: #e02447;
+            --ruby-deep: #6e0d1f;
+            --text-light: #eae4dc;
+            --text-dim: #9d948c;
+            --font-serif: 'Cormorant Garamond', Georgia, serif;
+            --font-sans: 'Montserrat', -apple-system, sans-serif;
+            --font-display: 'Cinzel', serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: none; /* Controlled by custom luxury cursor */
+            -webkit-font-smoothing: antialiased;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            font-family: var(--font-sans);
+            user-select: none;
+        }
+
+        /* 3D WebGL Canvas Layer */
+        #webgl-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            outline: none;
+        }
+
+        /* 35mm Subtle Film Grain Overlay */
+        #grain-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            pointer-events: none;
+            opacity: 0.045;
+            mix-blend-mode: overlay;
+        }
+
+        /* Ambient Lighting Vignette */
+        .ambient-vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 50%, transparent 40%, rgba(6, 3, 5, 0.75) 85%, #060305 100%);
+        }
+
+        /* Custom Luxury Cursor */
+        .cursor-dot {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 6px;
+            background: var(--gold-light);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(243, 229, 171, 0.8);
+            transition: width 0.3s cubic-bezier(0.19, 1, 0.22, 1), 
+                        height 0.3s cubic-bezier(0.19, 1, 0.22, 1),
+                        opacity 0.3s ease;
+        }
+
+        .cursor-ring {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 44px;
+            height: 44px;
+            border: 1px solid rgba(212, 175, 55, 0.45);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: width 0.35s cubic-bezier(0.19, 1, 0.22, 1), 
+                        height 0.35s cubic-bezier(0.19, 1, 0.22, 1), 
+                        border-color 0.35s ease,
+                        background 0.35s ease;
+        }
+
+        body.hover-active .cursor-ring {
+            width: 68px;
+            height: 68px;
+            border-color: rgba(243, 229, 171, 0.85);
+            background: rgba(212, 175, 55, 0.08);
+            mix-blend-mode: difference;
+        }
+
+        body.hover-active .cursor-dot {
+            opacity: 0.4;
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+
+        /* Top Brand Header */
+        .brand-header {
+            position: fixed;
+            top: 36px;
+            left: 0;
+            width: 100%;
+            padding: 0 54px;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            color: var(--gold-primary);
+            font-weight: 300;
+        }
+
+        .brand-logo {
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            letter-spacing: 0.4em;
+            font-weight: 600;
+            background: linear-gradient(135deg, #fff 0%, var(--gold-light) 60%, var(--gold-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .audio-toggle {
+            background: transparent;
+            border: none;
+            color: var(--gold-light);
+            font-family: var(--font-sans);
+            font-size: 0.68rem;
+            letter-spacing: 0.25em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0.75;
+            transition: opacity 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .audio-toggle:hover {
+            opacity: 1;
+        }
+
+        .audio-wave {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            height: 12px;
+        }
+
+        .audio-wave span {
+            width: 2px;
+            height: 4px;
+            background: var(--gold-primary);
+            display: block;
+            border-radius: 1px;
+            transition: height 0.2s ease;
+        }
+
+        .audio-wave.playing span:nth-child(1) { animation: wave 1.2s infinite ease-in-out; }
+        .audio-wave.playing span:nth-child(2) { animation: wave 1.2s infinite ease-in-out 0.2s; }
+        .audio-wave.playing span:nth-child(3) { animation: wave 1.2s infinite ease-in-out 0.4s; }
+        .audio-wave.playing span:nth-child(4) { animation: wave 1.2s infinite ease-in-out 0.1s; }
+
+        @keyframes wave {
+            0%, 100% { height: 3px; }
+            50% { height: 13px; }
+        }
+
+        /* Hero UI Viewport */
+        .hero-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 120px 30px 60px;
+            pointer-events: none;
+            transition: opacity 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .hero-top-tag {
+            font-size: 0.7rem;
+            letter-spacing: 0.45em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 300;
+            margin-bottom: 8px;
+        }
+
+        .hero-center {
+            text-align: center;
+            max-width: 800px;
+            pointer-events: auto;
+        }
+
+        .hero-title-wrap {
+            overflow: hidden;
+            padding-bottom: 12px;
+        }
+
+        .hero-title {
+            font-family: var(--font-serif);
+            font-size: clamp(2.6rem, 5.5vw, 4.8rem);
+            font-weight: 300;
+            line-height: 1.15;
+            letter-spacing: 0.04em;
+            font-style: italic;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+        }
+
+        .hero-title em {
+            font-family: var(--font-serif);
+            font-style: normal;
+            font-weight: 400;
+            background: linear-gradient(135deg, #fff 15%, var(--gold-light) 60%, var(--gold-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle-wrap {
+            overflow: hidden;
+            margin-top: 14px;
+        }
+
+        .hero-subtitle {
+            font-size: 0.8rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 300;
+        }
+
+        .hero-bottom {
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* Magnetic Luxury Button */
+        .btn-magnetic-wrap {
+            position: relative;
+            display: inline-block;
+            padding: 10px;
+        }
+
+        .luxury-btn {
+            position: relative;
+            background: transparent;
+            border: 1px solid rgba(212, 175, 55, 0.4);
+            color: var(--gold-light);
+            font-family: var(--font-sans);
+            font-size: 0.75rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            padding: 18px 46px;
+            border-radius: 60px;
+            transition: border-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease;
+            outline: none;
+            overflow: hidden;
+            will-change: transform;
+            backdrop-filter: blur(8px);
+            background: rgba(15, 6, 10, 0.35);
+        }
+
+        .luxury-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(243, 229, 171, 0.2), transparent);
+            transition: left 0.8s ease;
+        }
+
+        .luxury-btn:hover::before {
+            left: 100%;
+        }
+
+        .luxury-btn:hover {
+            border-color: rgba(243, 229, 171, 0.9);
+            box-shadow: 0 0 35px rgba(212, 175, 55, 0.25);
+            color: #ffffff;
+        }
+
+        /* Recipient Name Customizer Box */
+        .recipient-input-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: var(--text-dim);
+            margin-top: 10px;
+        }
+
+        .recipient-input {
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.35);
+            color: var(--gold-light);
+            font-family: var(--font-serif);
+            font-size: 1.1rem;
+            font-style: italic;
+            text-align: center;
+            padding: 4px 10px;
+            width: 160px;
+            outline: none;
+            transition: border-color 0.4s ease, width 0.4s ease;
+        }
+
+        .recipient-input:focus {
+            border-bottom: 1px solid var(--gold-light);
+            width: 200px;
+        }
+
+        /* Message Card Presentation Layer (Haute Couture) */
+        .message-layer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            pointer-events: none;
+            opacity: 0;
+            visibility: hidden;
+            transition: visibility 0.5s;
+        }
+
+        .message-glass-card {
+            position: relative;
+            width: 100%;
+            max-width: 720px;
+            background: rgba(12, 5, 8, 0.65);
+            backdrop-filter: blur(28px) saturate(160%);
+            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8),
+                        0 0 50px rgba(110, 13, 31, 0.25),
+                        inset 0 0 30px rgba(212, 175, 55, 0.05);
+            border-radius: 4px;
+            padding: 60px 54px;
+            text-align: center;
+            transform: scale(0.92) translateY(40px);
+            pointer-events: auto;
+        }
+
+        /* Ornamental Card Corner Accents */
+        .card-corner {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border: 1px solid var(--gold-primary);
+            pointer-events: none;
+        }
+        .corner-tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+        .corner-tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+        .corner-bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+        .corner-br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+        .card-seal {
+            font-family: var(--font-display);
+            font-size: 0.65rem;
+            letter-spacing: 0.5em;
+            color: var(--gold-primary);
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            opacity: 0.8;
+        }
+
+        .card-salutation {
+            font-family: var(--font-serif);
+            font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+            font-weight: 300;
+            font-style: italic;
+            color: #ffffff;
+            margin-bottom: 28px;
+            letter-spacing: 0.05em;
+        }
+
+        .card-salutation span {
+            background: linear-gradient(135deg, #ffffff 0%, var(--gold-light) 60%, var(--gold-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-style: normal;
+        }
+
+        .card-body {
+            font-family: var(--font-serif);
+            font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+            font-weight: 300;
+            line-height: 1.95;
+            color: #ddd4cb;
+            margin-bottom: 36px;
+            letter-spacing: 0.02em;
+        }
+
+        .card-body p {
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .line-mask {
+            display: block;
+            transform: translateY(105%);
+        }
+
+        .card-signature {
+            font-family: var(--font-sans);
+            font-size: 0.72rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold-primary);
+            margin-top: 24px;
+            border-top: 1px solid rgba(212, 175, 55, 0.2);
+            padding-top: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-return-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-family: var(--font-sans);
+            font-size: 0.65rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            transition: color 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-return-btn:hover {
+            color: var(--gold-light);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            .brand-header {
+                padding: 0 24px;
+                top: 24px;
+            }
+            .hero-container {
+                padding: 100px 20px 40px;
+            }
+            .message-glass-card {
+                padding: 42px 26px;
+            }
+            .luxury-btn {
+                padding: 16px 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- WebGL Canvas for 3D Three.js & Volumetric Lights -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Canvas for 35mm Film Grain Simulation -->
+    <canvas id="grain-canvas"></canvas>
+
+    <!-- Vignette Frame -->
+    <div class="ambient-vignette"></div>
+
+    <!-- Luxury Micro-interaction Cursors -->
+    <div class="cursor-dot" id="cursor-dot"></div>
+    <div class="cursor-ring" id="cursor-ring"></div>
+
+    <!-- Top Minimalist Header -->
+    <header class="brand-header">
+        <div class="brand-logo interactive">OCTOBRE • 20</div>
+        <div class="header-controls">
+            <button class="audio-toggle interactive" id="audio-toggle" title="Không gian âm thanh">
+                <div class="audio-wave" id="audio-wave">
+                    <span></span><span></span><span></span><span></span>
+                </div>
+                <span id="audio-label">Âm thanh: Bật</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <main class="hero-container" id="hero-container">
+        <div class="hero-top-tag">20.10 PHỤ NỮ VIỆT NAM </div>
+
+        <div class="hero-center">
+            <div class="hero-title-wrap">
+                <h1 class="hero-title">
+                     Chúc Yến 20 / 10 <em> vui vẻ nhé!!!</em>
+                </h1>
+            </div>
+            <div class="hero-subtitle-wrap">
+                <p class="hero-subtitle">   </p>
+            </div>
+        </div>
+
+        <div class="hero-bottom">
+            <div class="">
+                <span>ẤN VÀO BÊN DƯỚI ĐIII </span>
+                <input type="text" class="recipient-input interactive" id="recipient-name-input" value="" spellcheck="false">
+            </div>
+
+            <div class="btn-magnetic-wrap" id="explore-btn-wrap">
+                <button class="luxury-btn interactive" id="explore-btn">
+                    ĐÂY NÀYYY
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- High-end Revealed Message Layer -->
+    <section class="message-layer" id="message-layer">
+        <div class="message-glass-card" id="message-card">
+            <!-- Corners -->
+            <div class="card-corner corner-tl"></div>
+            <div class="card-corner corner-tr"></div>
+            <div class="card-corner corner-bl"></div>
+            <div class="card-corner corner-br"></div>
+
+            <div class="card-seal">Ngày Phụ Nữ Việt Nam • 20.10</div>
+
+            <h2 class="card-salutation">
+                Gửi <span id="display-name">Hải Yến</span>,
+            </h2>
+
+            <div class="card-body">
+                <p>
+                    <span class="line-mask">Chúc Yến 20/10 thật nhiều niềm vui nhée.</span>
+                </p>
+                <p>
+                    <span class="line-mask">Ngày càng đẹp gái, học giỏi và thành công trên con đường mình đã chọn.</span>
+                </p>
+                <p>
+                    <span class="line-mask">Mình biết mối quan hệ nào cũng cần thời gian,</span>
+                </p>
+                <p>
+                    <span class="line-mask">chỉ mong sắp tới Yến thoải mái và cởi mở với mình hơn một chút,</span>
+                </p>
+                <p>
+                    <span class="line-mask">cho mình cơ hội được hiểu Yến nhiều hơn.</span>
+                </p>
+            </div>
+
+            <div class="card-signature">
+                <span>ĐỂ DÀNH CHO CẬU</span>
+                <button class="card-return-btn interactive" id="return-btn">
+                    <span>←</span> VỀ COI HOA
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Application Script -->
+    <script>
+        /**
+         * =========================================================================
+         * 1. STATE & GLOBAL CONFIGURATION
+         * =========================================================================
+         */
+        const CONFIG = {
+            colors: {
+                bg: 0x050204,
+                gold: 0xd4af37,
+                goldLight: 0xf3e5ab,
+                ruby: 0x9e0828,        // Pigeon blood ruby primary
+                rubyDark: 0x3d020d,    // Deep absorption body
+                rubyGlow: 0xd11a3d,    // Gem refraction fire
+                rubyHighlight: 0xff4d6d
+            },
+            particlesCount: 450,
+            repulsionRadius: 1.8,
+            repulsionStrength: 0.08
+        };
+
+        const state = {
+            mouseX: 0,
+            mouseY: 0,
+            targetMouseX: 0,
+            targetMouseY: 0,
+            cursorX: window.innerWidth / 2,
+            cursorY: window.innerHeight / 2,
+            ringX: window.innerWidth / 2,
+            ringY: window.innerHeight / 2,
+            isZoomed: false,
+            audioPlaying: false,
+            audioInited: false
+        };
+
+        /* DOM Elements */
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorRing = document.getElementById('cursor-ring');
+        const heroContainer = document.getElementById('hero-container');
+        const messageLayer = document.getElementById('message-layer');
+        const messageCard = document.getElementById('message-card');
+        const exploreBtn = document.getElementById('explore-btn');
+        const exploreBtnWrap = document.getElementById('explore-btn-wrap');
+        const returnBtn = document.getElementById('return-btn');
+        const nameInput = document.getElementById('recipient-name-input');
+        const displayName = document.getElementById('display-name');
+        const audioToggle = document.getElementById('audio-toggle');
+        const audioWave = document.getElementById('audio-wave');
+        const audioLabel = document.getElementById('audio-label');
+
+        /* Dynamic Name Binding */
+        nameInput.addEventListener('input', (e) => {
+            const val = e.target.value.trim();
+            displayName.textContent = val.length > 0 ? val : 'Bạn';
+        });
+
+        /**
+         * =========================================================================
+         * 2. HIGH-END MICRO-INTERACTIONS (Cursor & Magnetic Buttons)
+         * =========================================================================
+         */
+        window.addEventListener('mousemove', (e) => {
+            state.cursorX = e.clientX;
+            state.cursorY = e.clientY;
+
+            // Normalized coordinates (-1 to 1) for 3D Parallax
+            state.targetMouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            state.targetMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        // Interactive Cursor Hover State
+        function initInteractiveHover() {
+            const interactives = document.querySelectorAll('.interactive');
+            interactives.forEach(el => {
+                el.addEventListener('mouseenter', () => document.body.classList.add('hover-active'));
+                el.addEventListener('mouseleave', () => document.body.classList.remove('hover-active'));
+            });
+        }
+        initInteractiveHover();
+
+        // Magnetic Button Physics
+        function initMagneticButton() {
+            exploreBtnWrap.addEventListener('mousemove', (e) => {
+                const rect = exploreBtnWrap.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const distanceX = (e.clientX - centerX) * 0.35;
+                const distanceY = (e.clientY - centerY) * 0.35;
+
+                gsap.to(exploreBtn, {
+                    x: distanceX,
+                    y: distanceY,
+                    scale: 1.04,
+                    duration: 0.4,
+                    ease: "power2.out"
+                });
+            });
+
+            exploreBtnWrap.addEventListener('mouseleave', () => {
+                gsap.to(exploreBtn, {
+                    x: 0,
+                    y: 0,
+                    scale: 1,
+                    duration: 0.7,
+                    ease: "elastic.out(1, 0.4)"
+                });
+            });
+        }
+        initMagneticButton();
+
+        // Cursor Render Loop (Smooth Lerp)
+        function updateCursor() {
+            // Dot follows closely
+            cursorDot.style.transform = `translate3d(${state.cursorX}px, ${state.cursorY}px, 0) translate(-50%, -50%)`;
+
+            // Ring lags smoothly behind
+            state.ringX += (state.cursorX - state.ringX) * 0.16;
+            state.ringY += (state.cursorY - state.ringY) * 0.16;
+            cursorRing.style.transform = `translate3d(${state.ringX}px, ${state.ringY}px, 0) translate(-50%, -50%)`;
+
+            requestAnimationFrame(updateCursor);
+        }
+        updateCursor();
+
+        /**
+         * =========================================================================
+         * 3. 35MM FILM GRAIN GENERATOR
+         * =========================================================================
+         */
+        const grainCanvas = document.getElementById('grain-canvas');
+        const grainCtx = grainCanvas.getContext('2d');
+
+        function resizeGrain() {
+            grainCanvas.width = window.innerWidth / 2; // low-res for cinematic performance
+            grainCanvas.height = window.innerHeight / 2;
+        }
+        resizeGrain();
+        window.addEventListener('resize', resizeGrain);
+
+        let grainFrame = 0;
+        function renderGrain() {
+            grainFrame++;
+            if (grainFrame % 2 === 0) { // Update at ~30fps to simulate real film shutter
+                const w = grainCanvas.width;
+                const h = grainCanvas.height;
+                const idata = grainCtx.createImageData(w, h);
+                const buffer32 = new Uint32Array(idata.data.buffer);
+                const len = buffer32.length;
+                for (let i = 0; i < len; i++) {
+                    if (Math.random() < 0.12) {
+                        const gray = Math.floor(Math.random() * 255);
+                        buffer32[i] = (40 << 24) | (gray << 16) | (gray << 8) | gray;
+                    }
+                }
+                grainCtx.putImageData(idata, 0, 0);
+            }
+            requestAnimationFrame(renderGrain);
+        }
+        renderGrain();
+
+        /**
+         * =========================================================================
+         * 4. SPATIAL AUDIO SYSTEM (Pure Web Audio API - Zero External Files)
+         * =========================================================================
+         */
+        class SpatialAudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.masterGain = null;
+                this.filter = null;
+                this.reverb = null;
+                this.isPlaying = false;
+                this.sequenceTimer = null;
+                this.chordIndex = 0;
+            }
+
+            init() {
+                if (this.ctx) return;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+
+                // Master Gain
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+
+                // Low-Pass Filter for Quiet Luxury depth
+                this.filter = this.ctx.createBiquadFilter();
+                this.filter.type = 'lowpass';
+                this.filter.frequency.setValueAtTime(480, this.ctx.currentTime); // muffled initially
+                this.filter.Q.setValueAtTime(1.8, this.ctx.currentTime);
+
+                // Algorithmic Reverb Impulse
+                this.reverb = this.createConvolutionReverb();
+
+                // Wiring Audio Graph
+                this.filter.connect(this.reverb);
+                this.reverb.connect(this.masterGain);
+                this.masterGain.connect(this.ctx.destination);
+
+                this.startAmbientComposition();
+            }
+
+            createConvolutionReverb() {
+                const convolver = this.ctx.createConvolver();
+                const rate = this.ctx.sampleRate;
+                const length = rate * 3.5; // 3.5 second lush decay
+                const decay = 2.4;
+                const impulse = this.ctx.createBuffer(2, length, rate);
+                const left = impulse.getChannelData(0);
+                const right = impulse.getChannelData(1);
+
+                for (let i = 0; i < length; i++) {
+                    const n = i / length;
+                    const mult = Math.pow(1 - n, decay);
+                    left[i] = (Math.random() * 2 - 1) * mult;
+                    right[i] = (Math.random() * 2 - 1) * mult;
+                }
+                convolver.buffer = impulse;
+                return convolver;
+            }
+
+            playSoftNote(freq, time, duration = 3.2, gainLevel = 0.12) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                // Warm Triangle + Sine combination
+                osc.type = Math.random() > 0.5 ? 'triangle' : 'sine';
+                osc.frequency.setValueAtTime(freq, time);
+
+                // Felt Piano envelope
+                gain.gain.setValueAtTime(0.0001, time);
+                gain.gain.exponentialRampToValueAtTime(gainLevel, time + 0.15);
+                gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+                osc.connect(gain);
+                gain.connect(this.filter);
+
+                osc.start(time);
+                osc.stop(time + duration);
+            }
+
+            startAmbientComposition() {
+                // Ethereal progression in D-Major / B-minor Pentatonic: D4, F#4, A4, C#5, E5, F#5
+                const chords = [
+                    [293.66, 369.99, 440.00, 554.37], // Dmaj7
+                    [246.94, 369.99, 440.00, 587.33], // Bm7
+                    [329.63, 392.00, 493.88, 587.33], // Em9
+                    [220.00, 329.63, 440.00, 554.37]  // A7sus4
+                ];
+
+                const scheduleNextChord = () => {
+                    if (!this.ctx) return;
+                    const chord = chords[this.chordIndex % chords.length];
+                    const now = this.ctx.currentTime;
+
+                    chord.forEach((freq, idx) => {
+                        this.playSoftNote(freq, now + idx * 0.22, 5.0, 0.08);
+                    });
+
+                    // Occasional high sparkle chime
+                    if (Math.random() > 0.3) {
+                        const sparkleFreq = [880, 1108.73, 1318.51, 1479.98][Math.floor(Math.random() * 4)];
+                        this.playSoftNote(sparkleFreq, now + 1.2, 4.0, 0.04);
+                    }
+
+                    this.chordIndex++;
+                    this.sequenceTimer = setTimeout(scheduleNextChord, 4200);
+                };
+
+                scheduleNextChord();
+                this.isPlaying = true;
+            }
+
+            openFilterForReveal() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                this.filter.frequency.cancelScheduledValues(now);
+                // Sweep filter smoothly from 480Hz up to 18,000Hz
+                this.filter.frequency.exponentialRampToValueAtTime(17500, now + 2.5);
+            }
+
+            closeFilterForHero() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                this.filter.frequency.cancelScheduledValues(now);
+                this.filter.frequency.exponentialRampToValueAtTime(480, now + 1.8);
+            }
+
+            toggle() {
+                if (!this.ctx) {
+                    this.init();
+                    return true;
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                    this.isPlaying = true;
+                    return true;
+                } else if (this.isPlaying) {
+                    this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+                    this.isPlaying = false;
+                    return false;
+                } else {
+                    this.masterGain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                    this.isPlaying = true;
+                    return true;
+                }
+            }
+        }
+
+        const audio = new SpatialAudioEngine();
+
+        audioToggle.addEventListener('click', () => {
+            const active = audio.toggle();
+            state.audioPlaying = active;
+            if (active) {
+                audioWave.classList.add('playing');
+                audioLabel.textContent = 'Âm thanh: Bật';
+            } else {
+                audioWave.classList.remove('playing');
+                audioLabel.textContent = 'Âm thanh: Tắt';
+            }
+        });
+
+        // Initialize audio on first user touch anywhere
+        window.addEventListener('click', () => {
+            if (!state.audioInited) {
+                audio.init();
+                state.audioInited = true;
+                state.audioPlaying = true;
+                audioWave.classList.add('playing');
+            }
+        }, { once: true });
+
+        /**
+         * =========================================================================
+         * 5. THREE.JS 3D HERO: PROCEDURAL CRYSTAL ROSE & PARTICLES
+         * =========================================================================
+         */
+        const canvas = document.getElementById('webgl-canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(CONFIG.colors.bg);
+        scene.fog = new THREE.FogExp2(CONFIG.colors.bg, 0.08);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(0, 0, 5.8);
+
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            antialias: true,
+            powerPreference: "high-performance"
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.35;
+
+        // Post-Processing Composer with Bloom
+        let composer, bloomPass;
+        try {
+            const renderScene = new THREE.RenderPass(scene, camera);
+            bloomPass = new THREE.UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                0.85,  // bloom strength
+                0.45,  // radius
+                0.62   // threshold
+            );
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+        } catch (e) {
+            console.warn("Postprocessing fallback to standard render:", e);
+        }
+
+        // Lighting System: High Jewelry Showcase Illumination
+        const ambientLight = new THREE.AmbientLight(0x20050c, 1.2);
+        scene.add(ambientLight);
+
+        // Warm Key Light (Champagne Gold Facet Sparkle)
+        const keyLight = new THREE.SpotLight(CONFIG.colors.goldLight, 4.5);
+        keyLight.position.set(4.5, 6, 5);
+        keyLight.angle = Math.PI / 4.5;
+        keyLight.penumbra = 0.6;
+        scene.add(keyLight);
+
+        // Cold Brilliant Specular Light (Sharp Glint on Facet Edges)
+        const specularLight = new THREE.DirectionalLight(0xffffff, 2.4);
+        specularLight.position.set(3, 4, 3);
+        scene.add(specularLight);
+
+        // Deep Pigeon Blood Ruby Rim Light (Volumetric Edge Shimmer)
+        const rimLight = new THREE.DirectionalLight(CONFIG.colors.rubyGlow, 5.0);
+        rimLight.position.set(-5, -4, -3);
+        scene.add(rimLight);
+
+        // Internal Caustic / Heart Glow Light
+        const coreLight = new THREE.PointLight(CONFIG.colors.rubyHighlight, 3.5, 4.5);
+        coreLight.position.set(0, 0.15, 0.1);
+        scene.add(coreLight);
+
+        // -------------------------------------------------------------
+        // Haute Couture 3D Crystal Rose Geometry
+        // -------------------------------------------------------------
+        const roseGroup = new THREE.Group();
+        scene.add(roseGroup);
+
+        // High-end Corundum Ruby Gemstone Material
+        const rubyMaterial = new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(CONFIG.colors.ruby),
+            emissive: new THREE.Color(CONFIG.colors.rubyDark),
+            emissiveIntensity: 0.45,
+            roughness: 0.08,
+            metalness: 0.12,
+            transmission: 0.72,          // Gemstone internal light penetration
+            ior: 1.76,                   // True Corundum / Ruby refractive index
+            reflectivity: 0.95,
+            clearcoat: 1.0,              // Diamond-polished facet luster
+            clearcoatRoughness: 0.04,
+            transparent: true,
+            opacity: 0.98,
+            side: THREE.DoubleSide,
+            flatShading: true            // Faceted gem-cut look
+        });
+
+        // Faceted Rim Highlight Material for Diamond/Gold Bezel
+        const gemBezelMaterial = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(CONFIG.colors.goldLight),
+            metalness: 0.9,
+            roughness: 0.18,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.28
+        });
+
+        // Inner Fire Material
+        const innerRubyMaterial = new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(CONFIG.colors.rubyHighlight),
+            emissive: new THREE.Color(CONFIG.colors.rubyGlow),
+            emissiveIntensity: 0.75,
+            roughness: 0.05,
+            metalness: 0.05,
+            transmission: 0.85,
+            ior: 1.77,
+            clearcoat: 1.0,
+            flatShading: true,
+            side: THREE.DoubleSide
+        });
+
+        // Procedural Faceted Ruby Rose Sculpting
+        function createCrystalRose() {
+            const petalsTotal = 48;
+            const goldenAngle = 137.5 * (Math.PI / 180);
+
+            // Shape path for a sculpted gemstone petal with faceted thickness
+            const petalShape = new THREE.Shape();
+            petalShape.moveTo(0, 0);
+            petalShape.bezierCurveTo(0.18, 0.2, 0.38, 0.55, 0.28, 0.95);
+            petalShape.bezierCurveTo(0.15, 1.15, -0.15, 1.15, -0.28, 0.95);
+            petalShape.bezierCurveTo(-0.38, 0.55, -0.18, 0.2, 0, 0);
+
+            const extrudeSettings = {
+                steps: 1,
+                depth: 0.055,
+                bevelEnabled: true,
+                bevelThickness: 0.035,
+                bevelSize: 0.03,
+                bevelOffset: 0,
+                bevelSegments: 2 // Gives sharp, sparkling gemstone facets
+            };
+
+            const basePetalGeom = new THREE.ExtrudeGeometry(petalShape, extrudeSettings);
+            basePetalGeom.center();
+
+            for (let i = 0; i < petalsTotal; i++) {
+                const progress = i / petalsTotal;
+                const angle = i * goldenAngle;
+                
+                // Concentric spiral tiers with gem-like mathematical precision
+                const radius = 0.08 + Math.pow(progress, 1.25) * 1.55;
+                const y = Math.sin(progress * Math.PI) * 0.42 - progress * 0.35;
+                const scale = 0.45 + Math.pow(progress, 0.9) * 1.35;
+
+                const petalMesh = new THREE.Mesh(
+                    basePetalGeom, 
+                    progress < 0.25 ? innerRubyMaterial : rubyMaterial
+                );
+
+                petalMesh.position.x = Math.cos(angle) * radius;
+                petalMesh.position.y = y;
+                petalMesh.position.z = Math.sin(angle) * radius;
+
+                // Sculptural rotation: center buds wrap tightly, outer facets bloom outward
+                petalMesh.scale.set(scale, scale * 1.05, scale * (0.6 + progress * 0.4));
+                petalMesh.lookAt(0, y + 0.35, 0);
+                
+                const tiltOutward = 0.15 + Math.pow(progress, 1.2) * 0.95;
+                petalMesh.rotateX(tiltOutward);
+                petalMesh.rotateZ((Math.random() - 0.5) * 0.12);
+
+                roseGroup.add(petalMesh);
+
+                // Add precision gold edge wireframe on select outer gem facets
+                if (i > 14 && i % 4 === 0) {
+                    const wireMesh = new THREE.Mesh(basePetalGeom, gemBezelMaterial);
+                    wireMesh.position.copy(petalMesh.position);
+                    wireMesh.rotation.copy(petalMesh.rotation);
+                    wireMesh.scale.copy(petalMesh.scale).multiplyScalar(1.008);
+                    roseGroup.add(wireMesh);
+                }
+            }
+
+            // Central Brilliant-Cut Ruby Heart
+            const coreGeom = new THREE.DodecahedronGeometry(0.35, 1);
+            const coreMesh = new THREE.Mesh(coreGeom, innerRubyMaterial);
+            coreMesh.position.set(0, 0.05, 0);
+            roseGroup.add(coreMesh);
+
+            // Sparkling faceted diamond seed right in the center
+            const seedGeom = new THREE.OctahedronGeometry(0.18, 0);
+            const seedMat = new THREE.MeshPhysicalMaterial({
+                color: new THREE.Color(0xffffff),
+                emissive: new THREE.Color(CONFIG.colors.goldLight),
+                emissiveIntensity: 0.9,
+                roughness: 0.02,
+                metalness: 0.1,
+                transmission: 0.92,
+                ior: 2.42, // Diamond IOR
+                clearcoat: 1.0,
+                flatShading: true
+            });
+            const seedMesh = new THREE.Mesh(seedGeom, seedMat);
+            seedMesh.position.set(0, 0.12, 0);
+            roseGroup.add(seedMesh);
+
+            // Glow Halo / Luminescence anchored directly in the heart of the flower
+            const haloLight = new THREE.PointLight(CONFIG.colors.rubyHighlight, 4.2, 5.0);
+            haloLight.position.set(0, 0.15, 0);
+            roseGroup.add(haloLight);
+        }
+        createCrystalRose();
+
+        // Inverted orientation (Hoa lật ngược, chúc duyên dáng và kiêu sa)
+        roseGroup.rotation.x = -0.75;
+        roseGroup.rotation.y = 0.4;
+
+        // -------------------------------------------------------------
+        // Interactive Gold Dust Particle System (Float32Array)
+        // -------------------------------------------------------------
+        const particleCount = CONFIG.particlesCount;
+        const particleGeometry = new THREE.BufferGeometry();
+
+        const positions = new Float32Array(particleCount * 3);
+        const velocities = new Float32Array(particleCount * 3);
+        const originalPositions = new Float32Array(particleCount * 3);
+        const scales = new Float32Array(particleCount);
+
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i * 3;
+            // Spread particles in cylindrical volume around flower
+            const r = 0.8 + Math.random() * 3.8;
+            const theta = Math.random() * Math.PI * 2;
+            const y = (Math.random() - 0.5) * 4.5;
+
+            const px = Math.cos(theta) * r;
+            const py = y;
+            const pz = Math.sin(theta) * r;
+
+            positions[i3] = px;
+            positions[i3 + 1] = py;
+            positions[i3 + 2] = pz;
+
+            originalPositions[i3] = px;
+            originalPositions[i3 + 1] = py;
+            originalPositions[i3 + 2] = pz;
+
+            velocities[i3] = (Math.random() - 0.5) * 0.003;
+            velocities[i3 + 1] = (Math.random() - 0.5) * 0.004;
+            velocities[i3 + 2] = (Math.random() - 0.5) * 0.003;
+
+            scales[i] = Math.random() * 0.8 + 0.3;
+        }
+
+        particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particleGeometry.setAttribute('scale', new THREE.BufferAttribute(scales, 1));
+
+        // Particle Texture
+        function createGoldDiscTexture() {
+            const pCanvas = document.createElement('canvas');
+            pCanvas.width = 64;
+            pCanvas.height = 64;
+            const ctx = pCanvas.getContext('2d');
+            const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grad.addColorStop(0, 'rgba(255, 245, 210, 1)');
+            grad.addColorStop(0.3, 'rgba(212, 175, 55, 0.85)');
+            grad.addColorStop(0.7, 'rgba(180, 130, 30, 0.2)');
+            grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(pCanvas);
+        }
+
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.12,
+            map: createGoldDiscTexture(),
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            opacity: 0.75
+        });
+
+        const particleSystem = new THREE.Points(particleGeometry, particleMaterial);
+        scene.add(particleSystem);
+
+        // Raycasting Vector for Particle Repulsion
+        const raycaster = new THREE.Raycaster();
+        const mouse3D = new THREE.Vector2();
+        const interactionPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+        const intersectPoint = new THREE.Vector3();
+
+        /**
+         * =========================================================================
+         * 6. RENDER LOOP (Decoupled 60 FPS Engine)
+         * =========================================================================
+         */
+        let clock = new THREE.Clock();
+
+        function renderWebGL() {
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            // Smooth Parallax Mouse Tracking (Lerp)
+            state.mouseX += (state.targetMouseX - state.mouseX) * 0.05;
+            state.mouseY += (state.targetMouseY - state.mouseY) * 0.05;
+
+            if (!state.isZoomed) {
+                roseGroup.rotation.y = 0.4 + state.mouseX * 0.55 + time * 0.08;
+                roseGroup.rotation.x = -0.75 - state.mouseY * 0.45;
+                roseGroup.position.y = Math.sin(time * 0.8) * 0.08;
+            } else {
+                roseGroup.rotation.y += 0.005;
+            }
+
+            // Interactive Physics for Gold Particles
+            mouse3D.x = state.targetMouseX;
+            mouse3D.y = state.targetMouseY;
+            raycaster.setFromCamera(mouse3D, camera);
+            raycaster.ray.intersectPlane(interactionPlane, intersectPoint);
+
+            const posAttr = particleGeometry.attributes.position;
+            const pArray = posAttr.array;
+
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+
+                // Gentle organic drift
+                pArray[i3 + 1] += velocities[i3 + 1];
+                pArray[i3] += Math.sin(time + i) * 0.001;
+
+                // Loop bounds
+                if (pArray[i3 + 1] > 2.5) pArray[i3 + 1] = -2.5;
+                if (pArray[i3 + 1] < -2.5) pArray[i3 + 1] = 2.5;
+
+                // Mouse Repulsion Force
+                const dx = pArray[i3] - intersectPoint.x;
+                const dy = pArray[i3 + 1] - intersectPoint.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < CONFIG.repulsionRadius && dist > 0.01) {
+                    const force = (1 - dist / CONFIG.repulsionRadius) * CONFIG.repulsionStrength;
+                    pArray[i3] += (dx / dist) * force;
+                    pArray[i3 + 1] += (dy / dist) * force;
+                }
+            }
+            posAttr.needsUpdate = true;
+
+            // Render through Bloom Composer
+            if (composer) {
+                composer.render();
+            } else {
+                renderer.render(scene, camera);
+            }
+
+            requestAnimationFrame(renderWebGL);
+        }
+        renderWebGL();
+
+        // Responsive Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        /**
+         * =========================================================================
+         * 7. CINEMATIC TRANSITIONS & TEXT REVEALS (GSAP Timeline)
+         * =========================================================================
+         */
+        exploreBtn.addEventListener('click', () => {
+            if (state.isZoomed) return;
+            state.isZoomed = true;
+
+            // Trigger audio open filter
+            audio.openFilterForReveal();
+
+            const tl = gsap.timeline();
+
+            // 1. Fade out hero UI elements
+            tl.to(heroContainer, {
+                opacity: 0,
+                duration: 0.8,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    heroContainer.style.pointerEvents = "none";
+                }
+            });
+
+            // 2. Cinematic Camera Warp Zoom into heart of inverted crystal rose
+            tl.to(camera.position, {
+                x: 0,
+                y: -0.15,
+                z: 1.85,
+                duration: 2.2,
+                ease: "power3.inOut"
+            }, "-=0.4");
+
+            tl.to(camera.rotation, {
+                z: -0.15,
+                duration: 2.2,
+                ease: "power2.inOut"
+            }, "<");
+
+            // Bloom flare during transition
+            if (bloomPass) {
+                tl.to(bloomPass, {
+                    strength: 1.6,
+                    duration: 1.1,
+                    yoyo: true,
+                    repeat: 1,
+                    ease: "sine.inOut"
+                }, "<");
+            }
+
+            // 3. Reveal Haute Couture Glass Message Card
+            tl.to(messageLayer, {
+                autoAlpha: 1,
+                duration: 0.5,
+                onStart: () => {
+                    messageLayer.style.pointerEvents = "auto";
+                }
+            }, "-=0.6");
+
+            tl.to(messageCard, {
+                scale: 1,
+                y: 0,
+                duration: 1.4,
+                ease: "expo.out"
+            }, "<");
+
+            // 4. Staggered Text Masking Reveal
+            tl.to('.line-mask', {
+                y: '0%',
+                duration: 1.2,
+                stagger: 0.16,
+                ease: "power4.out"
+            }, "-=0.9");
+        });
+
+        // Return to 3D Exploration Mode
+        returnBtn.addEventListener('click', () => {
+            if (!state.isZoomed) return;
+
+            // Muffle back audio filter
+            audio.closeFilterForHero();
+
+            const tl = gsap.timeline();
+
+            // Hide text lines
+            tl.to('.line-mask', {
+                y: '105%',
+                duration: 0.6,
+                stagger: 0.05,
+                ease: "power2.in"
+            });
+
+            // Dismiss Card
+            tl.to(messageCard, {
+                scale: 0.92,
+                y: 40,
+                duration: 0.8,
+                ease: "power3.in"
+            }, "-=0.3");
+
+            tl.to(messageLayer, {
+                autoAlpha: 0,
+                duration: 0.4,
+                onComplete: () => {
+                    messageLayer.style.pointerEvents = "none";
+                }
+            }, "-=0.4");
+
+            // Zoom Camera back out
+            tl.to(camera.position, {
+                x: 0,
+                y: 0,
+                z: 5.8,
+                duration: 2.0,
+                ease: "power3.out"
+            });
+
+            tl.to(camera.rotation, {
+                z: 0,
+                duration: 2.0,
+                ease: "power3.out"
+            }, "<");
+
+            // Fade Hero UI back in
+            tl.to(heroContainer, {
+                opacity: 1,
+                duration: 0.9,
+                ease: "power2.out",
+                onStart: () => {
+                    heroContainer.style.pointerEvents = "auto";
+                    state.isZoomed = false;
+                }
+            }, "-=1.0");
+        });
+    </script>
+</body>
+</html>
